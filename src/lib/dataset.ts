@@ -5,6 +5,8 @@ export type VariableKind = "Pluie" | "Débit";
 export interface AnnualRow {
   year: number;
   max: number | null;
+  /** Date du maximum (AAAA-MM-JJ), si connue. */
+  dateOfMax?: string | null;
   completeness: number;
   included: boolean;
 }
@@ -23,6 +25,9 @@ export interface StoredDataset {
   minCompleteness: number;
   annual: AnnualRow[];
   warnings: string[];
+  /** Position de la station (degrés décimaux), facultative. */
+  lat?: number;
+  lng?: number;
   isTest?: boolean;
 }
 

@@ -7,10 +7,11 @@ import { useDatasets } from "@/lib/dataset-store";
 /** Bandeau d'avertissement : visible tant que des données fictives alimentent l'écran affiché. */
 export function TestBanner() {
   const pathname = usePathname();
-  const { active } = useDatasets();
+  const { active, datasets } = useDatasets();
+  const hasImported = datasets.some((d) => !d.isTest);
 
-  // Le tableau de bord et la liste des stations affichent encore des stations fictives.
-  const demoScreen = pathname === "/" || pathname.startsWith("/stations");
+  // Le tableau de bord (tant qu'aucune série n'est importée) et la liste des stations affichent des stations fictives.
+  const demoScreen = (pathname === "/" && !hasImported) || pathname.startsWith("/stations");
   const usesTestSeries = active.isTest && (pathname.startsWith("/analyse") || pathname.startsWith("/aide-decision") || pathname.startsWith("/donnees"));
   if (!demoScreen && !usesTestSeries) return null;
 

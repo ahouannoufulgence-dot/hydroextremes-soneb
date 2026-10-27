@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
   Database,
   FileSpreadsheet,
   Info,
+  MapPin,
   MoreHorizontal,
   Search,
   Trash2,
@@ -25,6 +26,14 @@ const MAX_BYTES = 50 * 1024 * 1024;
 const fmtDate = (iso: string) => (iso ? iso.split("-").reverse().join("/") : "—");
 const fmtInt = (n: number) => n.toLocaleString("fr-FR");
 
+/** Lit une coordonnée en degrés décimaux ; « » = non renseignée, null = invalide. */
+function parseCoord(text: string, limit: number): number | undefined | null {
+  const t = text.trim().replace(",", ".");
+  if (t === "") return undefined;
+  const n = Number(t);
+  return Number.isFinite(n) && Math.abs(n) <= limit ? n : null;
+}
+
 async function readRows(file: File): Promise<Cell[][]> {
   const name = file.name.toLowerCase();
   if (name.endsWith(".xlsx")) {
@@ -35,7 +44,7 @@ async function readRows(file: File): Promise<Cell[][]> {
 }
 
 export function ImportPanel() {
-  const { datasets, active, setActive, add, remove } = useDatasets();
+  const { datasets, active, setActive, add, remove, update } = useDatasets();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [query, setQuery] = useState("");
@@ -51,6 +60,11 @@ export function ImportPanel() {
   const [minCompleteness, setMinCompleteness] = useState(0.8);
   const [startMonth, setStartMonth] = useState(1);
   const [done, setDone] = useState<string | null>(null);
+  const [latText, setLatText] = useState("");
+  const [lngText, setLngText] = useState("");
+  const [editPos, setEditPos] = useState<string | null>(null);
+  const [editLat, setEditLat] = useState("");
+  const [editLng, setEditLng] = useState("");
 
   const unit = kind === "Pluie" ? "mm" : "m³/s";
 
@@ -61,12 +75,18 @@ export function ImportPanel() {
   const monthly = useMemo(() => (parsed ? monthlyMaxima(parsed.records) : []), [parsed]);
   const kept = annual.filter((a) => a.included).length;
 
+  const lat = parseCoord(latText, 90);
+  const lng = parseCoord(lngText, 180);
+  const coordsInvalid = lat === null || lng === null || (lat === undefined) !== (lng === undefined);
+
   const visible = datasets.filter((d) => d.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   function reset() {
     setFile(null);
     setParsed(null);
     setError(null);
+    setLatText("");
+    setLngText("");
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -110,7 +130,7 @@ export function ImportPanel() {
   }
 
   function handleImport() {
-    if (!parsed || !parsed.quality.start || !parsed.quality.end || !name.trim()) return;
+    if (!parsed || !parsed.quality.start || !parsed.quality.end || !name.trim() || coordsInvalid) return;
     const ds: StoredDataset = {
       id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       name: name.trim(),
@@ -122,8 +142,9 @@ export function ImportPanel() {
       end: parsed.quality.end,
       validDays: parsed.quality.validValues,
       minCompleteness,
-      annual: annual.map((a) => ({ year: a.year, max: a.max, completeness: a.completeness, included: a.included })),
+      annual: annual.map((a) => ({ year: a.year, max: a.max, dateOfMax: a.dateOfMax, completeness: a.completeness, included: a.included })),
       warnings: parsed.quality.warnings,
+      ...(lat !== undefined && lat !== null && lng !== undefined && lng !== null ? { lat, lng } : {}),
     };
     add(ds);
     setDone(`« ${ds.name} » importée : ${datasetSeries(ds).length} maxima annuels retenus. Elle est maintenant la série active pour l'analyse.`);
@@ -182,14 +203,21 @@ export function ImportPanel() {
                   const isActive = d.id === active.id;
                   const years = datasetSeries(d).length;
                   return (
+                    <Fragment key={d.id}>
                     <tr
-                      key={d.id}
                       onClick={() => setActive(d.id)}
                       className={`cursor-pointer border-b border-line/70 ${isActive ? "bg-brand-50 outline outline-1 -outline-offset-1 outline-brand-500/40" : "hover:bg-brand-50/60"}`}
                     >
                       <td className="py-3 pr-3 font-medium">
                         {d.name}
                         {d.isTest && <span className="ml-2 rounded bg-warn-soft px-1.5 py-0.5 text-[11px] font-semibold text-[#8a4b00]">fictive</span>}
+                        {!d.isTest && (
+                          <div className="text-xs font-normal text-muted">
+                            {d.lat !== undefined && d.lng !== undefined
+                              ? `${d.lat.toFixed(4).replace(".", ",")}° ; ${d.lng.toFixed(4).replace(".", ",")}°`
+                              : "Position non renseignée"}
+                          </div>
+                        )}
                       </td>
                       <td className="pr-3">
                         <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${d.kind === "Pluie" ? "bg-brand-100 text-brand-700" : "bg-ok-soft text-ok"}`}>
@@ -230,6 +258,19 @@ export function ImportPanel() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setMenuFor(null);
+                                    setEditPos(d.id);
+                                    setEditLat(d.lat !== undefined ? String(d.lat).replace(".", ",") : "");
+                                    setEditLng(d.lng !== undefined ? String(d.lng).replace(".", ",") : "");
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-brand-50"
+                                >
+                                  <MapPin className="size-4" /> Position
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setMenuFor(null);
                                     remove(d.id);
                                   }}
                                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-danger hover:bg-danger-soft"
@@ -242,6 +283,39 @@ export function ImportPanel() {
                         )}
                       </td>
                     </tr>
+                    {editPos === d.id && (
+                      <tr className="border-b border-line/70 bg-canvas">
+                        <td colSpan={5} className="px-3 py-3">
+                          <div className="flex flex-wrap items-end gap-3 text-sm">
+                            <label className="space-y-1">
+                              <span className="font-medium">Latitude (°)</span>
+                              <input value={editLat} onChange={(e) => setEditLat(e.target.value)} className="h-9 w-32 rounded-lg border border-line px-2" />
+                            </label>
+                            <label className="space-y-1">
+                              <span className="font-medium">Longitude (°)</span>
+                              <input value={editLng} onChange={(e) => setEditLng(e.target.value)} className="h-9 w-32 rounded-lg border border-line px-2" />
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const a = parseCoord(editLat, 90);
+                                const o = parseCoord(editLng, 180);
+                                if (a === null || o === null || (a === undefined) !== (o === undefined)) return;
+                                update(d.id, { lat: a, lng: o });
+                                setEditPos(null);
+                              }}
+                              className="h-9 rounded-lg bg-brand-600 px-4 font-medium text-white hover:bg-brand-700"
+                            >
+                              Enregistrer
+                            </button>
+                            <button type="button" onClick={() => setEditPos(null)} className="h-9 rounded-lg border border-line px-4 hover:bg-brand-50">
+                              Annuler
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
                 {!visible.length && (
@@ -334,6 +408,31 @@ export function ImportPanel() {
                   />
                 </label>
                 <label className="space-y-1">
+                  <span className="font-medium">Latitude (°) - facultatif</span>
+                  <input
+                    value={latText}
+                    onChange={(e) => setLatText(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="ex. 6,4969"
+                    className="h-10 w-full rounded-xl border border-line px-3 outline-none focus:border-brand-500"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="font-medium">Longitude (°) - facultatif</span>
+                  <input
+                    value={lngText}
+                    onChange={(e) => setLngText(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="ex. 2,6289"
+                    className="h-10 w-full rounded-xl border border-line px-3 outline-none focus:border-brand-500"
+                  />
+                </label>
+                {coordsInvalid && (
+                  <p className="col-span-2 text-sm text-danger">
+                    Renseignez les deux coordonnées en degrés décimaux (latitude entre -90 et 90, longitude entre -180 et 180), ou aucune.
+                  </p>
+                )}
+                <label className="space-y-1">
                   <span className="font-medium">Variable</span>
                   <select value={kind} onChange={(e) => setKind(e.target.value as VariableKind)} className="h-10 w-full rounded-xl border border-line bg-surface px-2">
                     <option value="Pluie">Pluie journalière (mm)</option>
@@ -368,7 +467,7 @@ export function ImportPanel() {
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={!name.trim() || kept === 0}
+                disabled={!name.trim() || kept === 0 || coordsInvalid}
                 className="flex h-11 items-center gap-2 rounded-xl bg-brand-600 px-5 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <UploadCloud className="size-5" /> Importer les données

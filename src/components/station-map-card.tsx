@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { MapPin, Search, SlidersHorizontal } from "lucide-react";
-import { stations } from "@/lib/stations";
+import type { Station } from "@/lib/stations";
 
 // Leaflet a besoin du navigateur : pas de rendu côté serveur.
 const StationMap = dynamic(() => import("./station-map"), {
@@ -19,13 +19,13 @@ function LegendPin({ color }: { color: string }) {
   );
 }
 
-export function StationMapCard() {
+export function StationMapCard({ stations, subtitle, emptyHint }: { stations: Station[]; subtitle?: string; emptyHint?: string }) {
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? stations.filter((s) => s.name.toLowerCase().includes(q)) : stations;
-  }, [query]);
+  }, [query, stations]);
 
   return (
     <section className="overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]">
@@ -34,7 +34,7 @@ export function StationMapCard() {
           <MapPin className="size-6 text-brand-600" fill="currentColor" strokeWidth={1.5} />
           <div>
             <h2 className="font-bold text-brand-900">Porto-Novo, Bénin</h2>
-            <p className="text-sm text-muted">Carte des stations de suivi hydrologique</p>
+            <p className="text-sm text-muted">{subtitle ?? "Carte des stations de suivi hydrologique"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export function StationMapCard() {
       </div>
 
       <div className="relative">
-        <StationMap stations={visible} />
+        <StationMap stations={visible} fitStations={stations} />
         <div className="pointer-events-none absolute bottom-4 left-4 z-[500] rounded-xl border border-line bg-surface/95 p-3 text-sm shadow-[var(--shadow-card)]">
           <div className="mb-2 font-semibold">Légende</div>
           <ul className="space-y-1.5">
@@ -69,8 +69,8 @@ export function StationMapCard() {
           </ul>
         </div>
         {visible.length === 0 && (
-          <div className="absolute inset-0 z-[500] grid place-items-center bg-surface/70 text-muted">
-            Aucune station ne correspond à « {query} ».
+          <div className="absolute inset-0 z-[500] grid place-items-center bg-surface/70 p-6 text-center text-muted">
+            {stations.length === 0 ? (emptyHint ?? "Aucune station à afficher.") : `Aucune station ne correspond à « ${query} ».`}
           </div>
         )}
       </div>

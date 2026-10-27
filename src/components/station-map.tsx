@@ -35,13 +35,28 @@ function stationIcon(station: Station) {
   return L.divIcon({ html, className: "station-marker", iconSize: [0, 0] });
 }
 
-export default function StationMap({ stations }: { stations: Station[] }) {
+interface Props {
+  /** Stations affichées (après filtrage par la recherche). */
+  stations: Station[];
+  /** Ensemble des stations : sert à cadrer la carte au chargement. */
+  fitStations: Station[];
+}
+
+export default function StationMap({ stations, fitStations }: Props) {
   const icons = useMemo(() => new Map(stations.map((s) => [s.id, stationIcon(s)])), [stations]);
+
+  const bounds = useMemo(
+    () => (fitStations.length >= 2 ? L.latLngBounds(fitStations.map((s) => [s.lat, s.lng] as [number, number])) : null),
+    [fitStations],
+  );
+  const center: [number, number] = fitStations.length === 1 ? [fitStations[0].lat, fitStations[0].lng] : [6.497, 2.628];
+  // La clé force le recadrage quand l'ensemble des stations change (pas à chaque frappe dans la recherche).
+  const key = fitStations.map((s) => s.id).join("|");
 
   return (
     <MapContainer
-      center={[6.497, 2.628]}
-      zoom={13}
+      key={key}
+      {...(bounds ? { bounds, boundsOptions: { padding: [60, 60] as [number, number], maxZoom: 14 } } : { center, zoom: 13 })}
       scrollWheelZoom={false}
       className="h-[420px] w-full"
     >

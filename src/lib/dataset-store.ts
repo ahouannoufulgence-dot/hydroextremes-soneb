@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { TEST_DATASET, type StoredDataset } from "@/lib/dataset";
 
 const KEY = "hydroextremes.datasets.v1";
@@ -59,7 +59,7 @@ function subscribe(cb: () => void) {
 
 export function useDatasets() {
   const state = useSyncExternalStore(subscribe, read, () => EMPTY);
-  const all = [TEST_DATASET, ...state.datasets];
+  const all = useMemo(() => [TEST_DATASET, ...state.datasets], [state.datasets]);
   const active = all.find((d) => d.id === state.activeId) ?? TEST_DATASET;
 
   const setActive = useCallback((id: string) => write({ ...read(), activeId: id }), []);
@@ -74,5 +74,10 @@ export function useDatasets() {
     write({ datasets: cur.datasets.filter((d) => d.id !== id), activeId: cur.activeId === id ? TEST_DATASET.id : cur.activeId });
   }, []);
 
-  return { datasets: all, active, setActive, add, remove };
+  const update = useCallback((id: string, patch: Partial<StoredDataset>) => {
+    const cur = read();
+    write({ ...cur, datasets: cur.datasets.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
+  }, []);
+
+  return { datasets: all, active, setActive, add, remove, update };
 }
