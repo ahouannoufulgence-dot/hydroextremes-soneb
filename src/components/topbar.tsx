@@ -1,19 +1,11 @@
-import { Bell, ChevronDown, FlaskConical, Menu, User } from "lucide-react";
+import { Bell, ChevronDown, Menu, User } from "lucide-react";
 import { Logo } from "./logo";
-import { IS_TEST_DATA } from "@/lib/stations";
+import { TestBanner } from "./test-banner";
 
 export function Topbar() {
   return (
     <>
-      {IS_TEST_DATA && (
-        <div
-          role="status"
-          className="flex items-center justify-center gap-2 bg-warn-soft px-4 py-1.5 text-xs font-medium text-[#8a4b00]"
-        >
-          <FlaskConical className="size-3.5" />
-          Données de test (fictives) — ne pas utiliser pour les résultats du mémoire
-        </div>
-      )}
+      <TestBanner />
       <header className="flex h-16 items-center justify-between border-b border-line bg-surface px-4 sm:px-6">
         <div className="flex items-center gap-3 lg:hidden">
           <Menu className="size-5 text-muted" aria-label="Menu" />

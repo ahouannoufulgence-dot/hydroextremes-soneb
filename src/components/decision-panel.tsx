@@ -25,11 +25,20 @@ import {
 } from "@/lib/design-rainfall";
 import { exportDecisionPdf } from "@/lib/export-pdf";
 import type { Analysis } from "@/lib/stats";
-import { IS_TEST_DATA } from "@/lib/stations";
+import type { VariableKind } from "@/lib/dataset";
 
 const card = "rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]";
 
-export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; seriesLabel: string }) {
+interface DecisionPanelProps {
+  analysis: Analysis;
+  seriesLabel: string;
+  unit: string;
+  kind: VariableKind;
+  isTestData: boolean;
+}
+
+export function DecisionPanel({ analysis, seriesLabel, unit, kind, isTestData }: DecisionPanelProps) {
+  const noun = kind === "Pluie" ? "Pluies de projet" : "Débits de projet";
   const bestId = analysis.results.find((r) => r.rank === 1)!.id;
   const [lawId, setLawId] = useState(bestId);
   const [scenarioId, setScenarioId] = useState<ScenarioId>("10");
@@ -69,7 +78,8 @@ export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; s
         alertThresholdMm: alertThreshold,
         criticalPeriod: CRITICAL_WORKS_PERIOD,
         criticalMm: criticalValue,
-        isTestData: IS_TEST_DATA,
+        isTestData,
+        unit,
       });
     } finally {
       setExporting(false);
@@ -119,9 +129,9 @@ export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; s
         <div className="flex items-start gap-3">
           <BarChart3 className="mt-0.5 size-6 text-brand-600" />
           <div>
-            <h2 className="text-lg font-bold text-brand-900">Valeurs de calcul – Pluies de projet (mm)</h2>
+            <h2 className="text-lg font-bold text-brand-900">Valeurs de calcul – {noun} ({unit})</h2>
             <p className="text-sm text-muted">
-              Précipitations extrêmes selon la période de retour (analyse fréquentielle)
+              {kind === "Pluie" ? "Précipitations extrêmes" : "Débits extrêmes"} selon la période de retour (analyse fréquentielle)
               {scenario.uplift > 0 && ` — majorées de ${scenario.label}`}
             </p>
           </div>
@@ -133,11 +143,11 @@ export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; s
               <div className="text-2xl font-semibold text-ink">T = {t} ans</div>
               <hr className="my-3 border-line" />
               <div className="text-4xl font-bold text-brand-900">
-                {formatMm(adjusted(t))} <span className="text-2xl">mm</span>
+                {formatMm(adjusted(t))} <span className="text-2xl">{unit}</span>
               </div>
               <div className="mt-2 text-xs text-muted">
                 IC {ciPercent} % : {formatMm(applyScenario(quantile(t).lower, scenario.uplift))} –{" "}
-                {formatMm(applyScenario(quantile(t).upper, scenario.uplift))} mm
+                {formatMm(applyScenario(quantile(t).upper, scenario.uplift))} {unit}
               </div>
             </div>
           ))}
@@ -154,7 +164,7 @@ export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; s
             </span>
           </div>
           <p className="mt-4 font-semibold">
-            Seuil d&apos;alerte : ≥ {formatMm(alertThreshold)} mm (correspond à T = {alertPeriod} ans)
+            Seuil d&apos;alerte : ≥ {formatMm(alertThreshold)} {unit} (correspond à T = {alertPeriod} ans)
           </p>
           <p className="mt-2 text-sm text-ink/80">
             Ce seuil est recommandé pour la protection des ouvrages et la gestion des risques d&apos;inondation.
@@ -228,11 +238,11 @@ export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; s
           <h2 className="font-bold text-brand-900">Recommandation</h2>
           <p className="mt-1 text-sm text-ink/90">
             Pour une conception robuste et résiliente, il est recommandé d&apos;utiliser la valeur de T ={" "}
-            {CRITICAL_WORKS_PERIOD} ans ({formatMm(base(CRITICAL_WORKS_PERIOD))} mm)
+            {CRITICAL_WORKS_PERIOD} ans ({formatMm(base(CRITICAL_WORKS_PERIOD))} {unit})
             {scenario.uplift > 0 ? (
               <>
                 {" "}
-                avec le scénario {scenario.label} ({formatMm(criticalValue)} mm)
+                avec le scénario {scenario.label} ({formatMm(criticalValue)} {unit})
               </>
             ) : (
               <> sans majoration climatique</>

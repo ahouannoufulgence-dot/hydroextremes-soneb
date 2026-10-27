@@ -13,6 +13,7 @@ export interface DecisionReport {
   criticalPeriod: number;
   criticalMm: number;
   isTestData: boolean;
+  unit: string;
 }
 
 /** Génère et télécharge le rapport PDF (chargé à la demande pour alléger l'application). */
@@ -49,9 +50,9 @@ export async function exportDecisionPdf(report: DecisionReport) {
   y += 12;
   doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(15, 31, 61);
   doc.text("Période de retour", left, y);
-  doc.text("Valeur actuelle (mm)", left + 40, y);
-  doc.text(`IC ${Math.round(report.confidenceLevel * 100)} % (mm)`, left + 85, y);
-  doc.text("Valeur de calcul (mm)", left + 130, y);
+  doc.text(`Valeur actuelle (${report.unit})`, left + 40, y);
+  doc.text(`IC ${Math.round(report.confidenceLevel * 100)} % (${report.unit})`, left + 85, y);
+  doc.text(`Valeur de calcul (${report.unit})`, left + 130, y);
   doc.setDrawColor(226, 233, 243).line(left, y + 2, 190, y + 2);
   doc.setFont("helvetica", "normal");
   for (const row of report.rows) {
@@ -68,13 +69,13 @@ export async function exportDecisionPdf(report: DecisionReport) {
   doc.setFont("helvetica", "normal").setFontSize(10);
   y += 7;
   doc.text(
-    `Seuil d'alerte : >= ${Math.round(report.alertThresholdMm)} mm (T = ${report.alertPeriod} ans).`,
+    `Seuil d'alerte : >= ${Math.round(report.alertThresholdMm)} ${report.unit} (T = ${report.alertPeriod} ans).`,
     left,
     y,
   );
   y += 6;
   const crit = doc.splitTextToSize(
-    `Ouvrages critiques : valeur de T = ${report.criticalPeriod} ans avec le scénario ${report.scenarioLabel}, soit ${Math.round(report.criticalMm)} mm. À ajuster selon le niveau de risque et la criticité de l'infrastructure.`,
+    `Ouvrages critiques : valeur de T = ${report.criticalPeriod} ans avec le scénario ${report.scenarioLabel}, soit ${Math.round(report.criticalMm)} ${report.unit}. À ajuster selon le niveau de risque et la criticité de l'infrastructure.`,
     170,
   );
   doc.text(crit, left, y);

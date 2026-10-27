@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { Activity, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
+import type { VariableKind } from "@/lib/dataset";
 import { DISTRIBUTIONS, weibullPositions, type Analysis, type MannKendallResult, type PettittResult } from "@/lib/stats";
 
 const card = "rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]";
@@ -40,9 +41,11 @@ interface Props {
   mannKendall: MannKendallResult;
   pettitt: PettittResult;
   seriesLabel: string;
+  unit: string;
+  kind: VariableKind;
 }
 
-export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLabel }: Props) {
+export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLabel, unit, kind }: Props) {
   const best = analysis.results.find((r) => r.rank === 1)!;
   const [selectedId, setSelectedId] = useState(best.id);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -115,10 +118,10 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {[
           ["Effectif", `${analysis.n} ans`],
-          ["Moyenne", `${fmt(analysis.summary.mean)} mm`],
-          ["Écart-type", `${fmt(analysis.summary.std)} mm`],
+          ["Moyenne", `${fmt(analysis.summary.mean)} ${unit}`],
+          ["Écart-type", `${fmt(analysis.summary.std)} ${unit}`],
           ["Asymétrie", fmt(analysis.summary.skewness, 2)],
-          ["Min – Max", `${fmt(analysis.summary.min, 0)} – ${fmt(analysis.summary.max, 0)} mm`],
+          ["Min – Max", `${fmt(analysis.summary.min, 0)} – ${fmt(analysis.summary.max, 0)} ${unit}`],
         ].map(([label, value]) => (
           <div key={label} className={`${card} px-4 py-3`}>
             <div className="text-xs text-muted">{label}</div>
@@ -191,12 +194,12 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
               <YAxis
                 tick={{ fill: "#5b6b82", fontSize: 12 }}
                 domain={[0, "auto"]}
-                label={{ value: "Pluie journalière maximale (mm)", angle: -90, position: "insideLeft", fill: "#5b6b82", fontSize: 12 }}
+                label={{ value: `${kind === "Pluie" ? "Pluie journalière maximale" : "Débit journalier maximal"} (${unit})`, angle: -90, position: "insideLeft", fill: "#5b6b82", fontSize: 12 }}
               />
               <Tooltip
                 labelFormatter={(u) => `T ≈ ${fmt(toT(Number(u)))} ans`}
                 formatter={(v) =>
-                  Array.isArray(v) ? `${Math.round(Number(v[0]))} – ${Math.round(Number(v[1]))} mm` : `${Math.round(Number(v))} mm`
+                  Array.isArray(v) ? `${Math.round(Number(v[0]))} – ${Math.round(Number(v[1]))} ${unit}` : `${Math.round(Number(v))} ${unit}`
                 }
               />
               <Area
@@ -239,7 +242,7 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
                 <CartesianGrid stroke="#e2e9f3" vertical={false} />
                 <XAxis dataKey="year" tick={{ fill: "#5b6b82", fontSize: 11 }} interval={4} />
                 <YAxis tick={{ fill: "#5b6b82", fontSize: 11 }} />
-                <Tooltip formatter={(v) => `${v} mm`} labelFormatter={(y) => `Année ${y}`} />
+                <Tooltip formatter={(v) => `${v} ${unit}`} labelFormatter={(y) => `Année ${y}`} />
                 <ReferenceLine y={mean} stroke="#f28c28" strokeDasharray="4 4" />
                 <Bar dataKey="max" name="Maximum annuel" fill="#1a73e8" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
@@ -257,7 +260,7 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
               {mannKendall.trend === "aucune"
                 ? "Pas de tendance significative"
                 : `Tendance à la ${mannKendall.trend} significative`}{" "}
-              (Z = {fmt(mannKendall.z, 2)}, p = {fmt(mannKendall.pValue, 3)}). Pente de Sen : {fmt(mannKendall.senSlope, 2)} mm/an.
+              (Z = {fmt(mannKendall.z, 2)}, p = {fmt(mannKendall.pValue, 3)}). Pente de Sen : {fmt(mannKendall.senSlope, 2)} {unit}/an.
             </div>
           </div>
           <div>
@@ -319,7 +322,7 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
       </section>
 
       <section className={`${card} overflow-x-auto p-5`}>
-        <h2 className="font-bold text-brand-900">Quantiles de pluie (mm)</h2>
+        <h2 className="font-bold text-brand-900">Quantiles de {kind === "Pluie" ? "pluie" : "débit"} ({unit})</h2>
         <table className="mt-3 w-full min-w-[560px] text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-muted">
             <tr className="border-b border-line">
