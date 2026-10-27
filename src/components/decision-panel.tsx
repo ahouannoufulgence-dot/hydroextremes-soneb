@@ -14,7 +14,6 @@ import {
   Waves,
 } from "lucide-react";
 import {
-  BASE_QUANTILES_MM,
   CRITICAL_WORKS_PERIOD,
   DEFAULT_ALERT_PERIOD,
   RETURN_PERIODS,
@@ -25,19 +24,26 @@ import {
   type ScenarioId,
 } from "@/lib/design-rainfall";
 import { exportDecisionPdf } from "@/lib/export-pdf";
+import type { Analysis } from "@/lib/stats";
 import { IS_TEST_DATA } from "@/lib/stations";
 
 const card = "rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]";
 
-export function DecisionPanel() {
+export function DecisionPanel({ analysis, seriesLabel }: { analysis: Analysis; seriesLabel: string }) {
+  const bestId = analysis.results.find((r) => r.rank === 1)!.id;
+  const [lawId, setLawId] = useState(bestId);
   const [scenarioId, setScenarioId] = useState<ScenarioId>("10");
   const [alertPeriod, setAlertPeriod] = useState<ReturnPeriod>(DEFAULT_ALERT_PERIOD);
   const [exporting, setExporting] = useState(false);
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId)!;
-  const adjusted = (t: ReturnPeriod) => applyScenario(BASE_QUANTILES_MM[t], scenario.uplift);
+  const law = analysis.results.find((r) => r.id === lawId)!;
+  const quantile = (t: ReturnPeriod) => law.quantiles.find((q) => q.period === t)!;
+  const base = (t: ReturnPeriod) => quantile(t).value;
+  const adjusted = (t: ReturnPeriod) => applyScenario(base(t), scenario.uplift);
+  const ciPercent = Math.round(analysis.confidenceLevel * 100);
 
-  const alertThreshold = BASE_QUANTILES_MM[alertPeriod];
+  const alertThreshold = base(alertPeriod);
   const criticalValue = adjusted(CRITICAL_WORKS_PERIOD);
 
   async function handleExport() {
@@ -46,9 +52,18 @@ export function DecisionPanel() {
       await exportDecisionPdf({
         rows: RETURN_PERIODS.map((t) => ({
           period: t,
-          baseMm: BASE_QUANTILES_MM[t],
+          baseMm: base(t),
           adjustedMm: adjusted(t),
+          lowerMm: applyScenario(quantile(t).lower, scenario.uplift),
+          upperMm: applyScenario(quantile(t).upper, scenario.uplift),
         })),
+        lawLabel: law.label,
+        method: law.method,
+        sampleSize: analysis.n,
+        seriesLabel,
+        confidenceLevel: analysis.confidenceLevel,
+        ksStatistic: law.ks.statistic,
+        ksPValue: law.ks.pValue,
         scenarioLabel: scenario.label,
         alertPeriod,
         alertThresholdMm: alertThreshold,
@@ -75,6 +90,31 @@ export function DecisionPanel() {
         </div>
       </div>
 
+      <section className={`${card} flex flex-wrap items-center gap-x-6 gap-y-3 p-4 text-sm`}>
+        <label className="flex items-center gap-2">
+          <span className="font-medium text-brand-900">Loi d&apos;ajustement</span>
+          <select
+            value={lawId}
+            onChange={(e) => setLawId(e.target.value as typeof lawId)}
+            className="rounded-lg border border-line bg-surface px-2 py-1.5"
+          >
+            {[...analysis.results]
+              .sort((a, b) => a.rank - b.rank)
+              .map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label} {r.rank === 1 ? "(meilleur AICc)" : ""}
+                </option>
+              ))}
+          </select>
+        </label>
+        <span className="text-muted">
+          {seriesLabel} · n = {analysis.n} maxima annuels · {law.method}
+        </span>
+        <span className="text-muted">
+          KS : D = {law.ks.statistic.toFixed(3)} (p ≈ {law.ks.pValue.toFixed(2)}) · AICc = {law.criteria.aicc.toFixed(1)}
+        </span>
+      </section>
+
       <section className="space-y-3">
         <div className="flex items-start gap-3">
           <BarChart3 className="mt-0.5 size-6 text-brand-600" />
@@ -94,6 +134,10 @@ export function DecisionPanel() {
               <hr className="my-3 border-line" />
               <div className="text-4xl font-bold text-brand-900">
                 {formatMm(adjusted(t))} <span className="text-2xl">mm</span>
+              </div>
+              <div className="mt-2 text-xs text-muted">
+                IC {ciPercent} % : {formatMm(applyScenario(quantile(t).lower, scenario.uplift))} –{" "}
+                {formatMm(applyScenario(quantile(t).upper, scenario.uplift))} mm
               </div>
             </div>
           ))}
@@ -184,7 +228,7 @@ export function DecisionPanel() {
           <h2 className="font-bold text-brand-900">Recommandation</h2>
           <p className="mt-1 text-sm text-ink/90">
             Pour une conception robuste et résiliente, il est recommandé d&apos;utiliser la valeur de T ={" "}
-            {CRITICAL_WORKS_PERIOD} ans ({formatMm(BASE_QUANTILES_MM[CRITICAL_WORKS_PERIOD])} mm)
+            {CRITICAL_WORKS_PERIOD} ans ({formatMm(base(CRITICAL_WORKS_PERIOD))} mm)
             {scenario.uplift > 0 ? (
               <>
                 {" "}

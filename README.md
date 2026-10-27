@@ -13,6 +13,16 @@ npm run dev
 
 ## État
 - Tableau de bord (indicateurs + carte des stations)
+- Aide à la décision : quantiles calculés par le moteur statistique, scénarios +10 % / +20 %, export PDF
+- Moteur d'analyse fréquentielle (`src/lib/stats`) : Gumbel, GEV, Log-normale, Log-Pearson III ; tests KS, AIC/AICc/BIC ; intervalles de confiance par bootstrap paramétrique ; Mann-Kendall, Pettitt ; maxima annuels
 - Les autres écrans sont des pages provisoires.
+
+## Validation du moteur
+Les calculs sont comparés à SciPy (valeurs de référence dans `tests/reference/`).
+
+```bash
+npm test                                              # 29 tests
+python3 -I tests/reference/generate_reference.py      # régénère les références (SciPy)
+```
 
 > Les données affichées sont **fictives** (voir `src/lib/stations.ts`).

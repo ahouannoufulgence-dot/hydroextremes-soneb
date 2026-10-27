@@ -1,5 +1,12 @@
 export interface DecisionReport {
-  rows: { period: number; baseMm: number; adjustedMm: number }[];
+  rows: { period: number; baseMm: number; adjustedMm: number; lowerMm: number; upperMm: number }[];
+  lawLabel: string;
+  method: string;
+  sampleSize: number;
+  seriesLabel: string;
+  confidenceLevel: number;
+  ksStatistic: number;
+  ksPValue: number;
   scenarioLabel: string;
   alertPeriod: number;
   alertThresholdMm: number;
@@ -30,18 +37,29 @@ export async function exportDecisionPdf(report: DecisionReport) {
     doc.text("DONNÉES FICTIVES - ne pas utiliser pour les résultats du mémoire.", left, y);
   }
 
+  y += 8;
+  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(91, 107, 130);
+  doc.text(
+    `Série : ${report.seriesLabel} - n = ${report.sampleSize} maxima annuels. Loi : ${report.lawLabel} (${report.method}). KS : D = ${report.ksStatistic.toFixed(3)}, p = ${report.ksPValue.toFixed(2)}.`,
+    left,
+    y,
+    { maxWidth: 170 },
+  );
+
   y += 12;
   doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(15, 31, 61);
   doc.text("Période de retour", left, y);
-  doc.text("Valeur actuelle (mm)", left + 55, y);
-  doc.text("Valeur de calcul (mm)", left + 115, y);
+  doc.text("Valeur actuelle (mm)", left + 40, y);
+  doc.text(`IC ${Math.round(report.confidenceLevel * 100)} % (mm)`, left + 85, y);
+  doc.text("Valeur de calcul (mm)", left + 130, y);
   doc.setDrawColor(226, 233, 243).line(left, y + 2, 190, y + 2);
   doc.setFont("helvetica", "normal");
   for (const row of report.rows) {
     y += 8;
     doc.text(`T = ${row.period} ans`, left, y);
-    doc.text(String(Math.round(row.baseMm)), left + 55, y);
-    doc.text(String(Math.round(row.adjustedMm)), left + 115, y);
+    doc.text(String(Math.round(row.baseMm)), left + 40, y);
+    doc.text(`${Math.round(row.lowerMm)} - ${Math.round(row.upperMm)}`, left + 85, y);
+    doc.text(String(Math.round(row.adjustedMm)), left + 130, y);
   }
 
   y += 14;
@@ -63,7 +81,7 @@ export async function exportDecisionPdf(report: DecisionReport) {
 
   doc.setFontSize(8).setTextColor(91, 107, 130);
   doc.text(
-    "Méthode : analyse fréquentielle des maxima annuels. Les lois et paramètres retenus sont à documenter dans le mémoire.",
+    "Méthode : analyse fréquentielle des maxima annuels, intervalles de confiance par bootstrap paramétrique. À documenter dans le mémoire.",
     left,
     280,
   );

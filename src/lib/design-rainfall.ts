@@ -1,18 +1,11 @@
 /**
- * VALEURS FICTIVES — reprises des maquettes pour tester l'interface.
- * Elles seront remplacées par les quantiles issus du moteur d'analyse
- * fréquentielle appliqué aux vraies données de la SONEB.
+ * Périodes de retour affichées et scénarios de majoration climatique.
+ * Les quantiles ne sont plus saisis à la main : ils viennent du moteur
+ * d'analyse fréquentielle (src/lib/stats) appliqué à une série de maxima annuels.
  */
 
 export const RETURN_PERIODS = [10, 50, 100, 200] as const;
 export type ReturnPeriod = (typeof RETURN_PERIODS)[number];
-
-export const BASE_QUANTILES_MM: Record<ReturnPeriod, number> = {
-  10: 92,
-  50: 145,
-  100: 175,
-  200: 210,
-};
 
 export const SCENARIOS = [
   { id: "0", label: "Actuel (0%)", uplift: 0 },
