@@ -1,0 +1,46 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "leaflet/dist/leaflet.css";
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Palette issue des maquettes HydroExtrêmes SONEB */
+  --color-brand-900: #0b2a6f;
+  --color-brand-700: #0a4cb3;
+  --color-brand-600: #0b63ce;
+  --color-brand-500: #1a73e8;
+  --color-brand-100: #e3effd;
+  --color-brand-50: #f0f6fe;
+
+  --color-canvas: #f4f8fd;
+  --color-surface: #ffffff;
+  --color-line: #e2e9f3;
+  --color-ink: #0f1f3d;
+  --color-muted: #5b6b82;
+
+  --color-ok: #2e9e5b;
+  --color-ok-soft: #e6f5ec;
+  --color-warn: #f28c28;
+  --color-warn-soft: #fff3e5;
+  --color-danger: #e5484d;
+  --color-danger-soft: #fdeaea;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 2px rgb(15 31 61 / 0.04), 0 4px 16px rgb(15 31 61 / 0.04);
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Marqueurs de la carte : on neutralise le style par défaut de Leaflet */
+.station-marker {
+  background: transparent;
+  border: 0;
+}
+.leaflet-container {
+  font-family: var(--font-sans);
+}
