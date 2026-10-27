@@ -17,7 +17,8 @@ import {
 } from "recharts";
 import { Activity, LineChart as LineChartIcon, TrendingUp } from "lucide-react";
 import type { VariableKind } from "@/lib/dataset";
-import { DISTRIBUTIONS, weibullPositions, type Analysis, type MannKendallResult, type PettittResult } from "@/lib/stats";
+import { TICK_PERIODS, buildPlotData, toT, toU } from "@/lib/plot-data";
+import type { Analysis, MannKendallResult, PettittResult } from "@/lib/stats";
 
 const card = "rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)]";
 
@@ -27,11 +28,6 @@ const LAW_COLORS: Record<string, string> = {
   lognormal: "#f28c28",
   lp3: "#7c4dff",
 };
-
-/** Variable réduite de Gumbel : u = -ln(-ln p). Les axes « papier de probabilité » s'y alignent. */
-const toU = (T: number) => -Math.log(-Math.log(1 - 1 / T));
-const toT = (u: number) => 1 / (1 - Math.exp(-Math.exp(-u)));
-const TICK_PERIODS = [2, 5, 10, 20, 50, 100, 200];
 
 const fmt = (v: number, d = 1) => v.toLocaleString("fr-FR", { maximumFractionDigits: d, minimumFractionDigits: d });
 
@@ -52,41 +48,7 @@ export function AnalysisPanel({ analysis, series, mannKendall, pettitt, seriesLa
   const selected = analysis.results.find((r) => r.id === selectedId)!;
   const ciPercent = Math.round(analysis.confidenceLevel * 100);
 
-  const { rows, points } = useMemo(() => {
-    const ci = [...selected.quantiles].sort((a, b) => a.period - b.period).map((q) => ({ u: toU(q.period), lo: q.lower, hi: q.upper }));
-    const interpolate = (u: number, key: "lo" | "hi") => {
-      if (u < ci[0].u || u > ci[ci.length - 1].u) return undefined;
-      for (let i = 0; i < ci.length - 1; i++) {
-        if (u >= ci[i].u && u <= ci[i + 1].u) {
-          const w = (u - ci[i].u) / (ci[i + 1].u - ci[i].u);
-          return ci[i][key] + w * (ci[i + 1][key] - ci[i][key]);
-        }
-      }
-      return undefined;
-    };
-
-    const N = 80;
-    const rows = Array.from({ length: N }, (_, i) => {
-      const u = -1.5 + (i * 7.9) / (N - 1);
-      const p = Math.exp(-Math.exp(-u));
-      const row: Record<string, number | number[] | null | undefined> = { u };
-      for (const r of analysis.results) {
-        const dist = DISTRIBUTIONS.find((d) => d.id === r.id)!;
-        const y = dist.ppf(p, r.params);
-        row[r.id] = Number.isFinite(y) ? y : null;
-      }
-      const lo = interpolate(u, "lo");
-      const hi = interpolate(u, "hi");
-      row.band = lo !== undefined && hi !== undefined ? [lo, hi] : undefined;
-      return row;
-    });
-
-    const points = weibullPositions(analysis.empirical.map((e) => e.value)).map((e) => ({
-      u: -Math.log(-Math.log(e.probability)),
-      value: e.value,
-    }));
-    return { rows, points };
-  }, [analysis, selected]);
+  const { rows, points } = useMemo(() => buildPlotData(analysis, selectedId), [analysis, selectedId]);
 
   const mean = analysis.summary.mean;
 

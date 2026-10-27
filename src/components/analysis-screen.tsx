@@ -6,7 +6,7 @@ import { useActiveAnalysis } from "./active-analysis";
 import { AnalysisPanel } from "./analysis-panel";
 import { DecisionPanel } from "./decision-panel";
 
-function Problem({ message }: { message: string }) {
+export function Problem({ message }: { message: string }) {
   return (
     <div className="mx-auto max-w-3xl rounded-[var(--radius-card)] border border-warn/40 bg-warn-soft/60 p-6">
       <div className="flex items-start gap-3">
